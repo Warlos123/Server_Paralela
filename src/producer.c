@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "../includes/net_util.h"
 #include"../includes/consumer_pool.h"
 #include "../includes/work_queue.h"
@@ -13,11 +14,9 @@
 
 static volatile sig_atomic_t g_running = 1;
 
-static unsigned long g_requests_served = 0;
 
 #define DEFAULT_PORT 8080
 #define LISTEN_BACKLOG 64
-#define DRAIN_SECONDS 1
 #define QUEUE_CAPACITY 64
 #define CONSUMER_COUNT 8
 
@@ -41,7 +40,7 @@ static int install_signal_handlers(void)
     }
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = on_sigint;
+    sa.sa_handler = SIG_IGN;
 
     if (sigaction(SIGPIPE, &sa, NULL) < 0)
     {
@@ -79,9 +78,9 @@ int main(int argc, char **argv){
 
     unsigned short port = parse_port(argc,argv);
 
-    int listen_file_desciptor = nu_listen(port, LISTEN_BACKLOG);
+    int listen_file_descriptor = nu_listen(port, LISTEN_BACKLOG);
 
-    if(listen_file_desciptor < 0){
+    if(listen_file_descriptor < 0){
         return EXIT_FAILURE;
     }
 
@@ -89,29 +88,62 @@ int main(int argc, char **argv){
     fflush(stdout);
 
     work_queue_t workQueue; 
-    wq_init(&workQueue, QUEUE_CAPACITY);
+    if(wq_init(&workQueue, QUEUE_CAPACITY) !=0){
+        close(listen_file_descriptor);
+        return EXIT_FAILURE;
+    }
+    
+
+    sigset_t sigint_set;
+    sigemptyset(&sigint_set);
+    sigaddset(&sigint_set, SIGINT);
+
+    pthread_sigmask(SIG_BLOCK, &sigint_set, NULL);
 
     consumer_pool_t consumerPool;
-    cp_init(&consumerPool, CONSUMER_COUNT ,&workQueue);
+    if(cp_init(&consumerPool,CONSUMER_COUNT,&workQueue)!= 0){
+        wq_destroy(&workQueue);
+        close(listen_file_descriptor);
+        return EXIT_FAILURE;
+    }
+
+    pthread_sigmask(SIG_UNBLOCK, &sigint_set, NULL);
+
+
+    unsigned long accepted = 0;
+
 
     while(g_running){
-        int client_file_descriptor = accpet(listen_file_desciptor,NULL,NULL);
+        int client_file_descriptor = accept(listen_file_descriptor,NULL,NULL);
         if(client_file_descriptor < 0){
             if(errno == EINTR){
                 continue;
             }
-            perror(accept);
+            perror("accept");
             break;
         }
-        // push
+        
+        int push = wq_push(&workQueue, client_file_descriptor);
+        if( push != 0){
+            close(client_file_descriptor);
+            break; 
+        }else{
+            accepted++;
+            printf("[Producer] connection %lu queued\n", accepted);
+            fflush(stdout);
+        }
+
          
     }
 
+    close(listen_file_descriptor);
     wq_close(&workQueue);
     cp_destroy(&consumerPool);
     wq_destroy(&workQueue);
 
-    //print stats
+    printf("\naccepted: %lu\n", accepted);
+    printf("served:   %lu\n", consumerPool.requests_served);
+    printf("lost:     %ld\n", (long)accepted - (long)consumerPool.requests_served);
 
-    return 0;
+    return EXIT_SUCCESS;
 }

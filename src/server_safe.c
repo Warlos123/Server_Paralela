@@ -3,6 +3,7 @@
 //
 
 
+#define _POSIX_C_SOURCE 200809L
 #include "../includes/net_util.h"
 #include <errno.h>
 #include <pthread.h>
@@ -14,7 +15,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define _POSIX_C_SOURCE 200809L
+
 
 #define DEFAULT_PORT 8080
 #define LISTEN_BACKLOG 64

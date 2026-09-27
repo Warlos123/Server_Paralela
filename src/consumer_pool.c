@@ -54,6 +54,11 @@ int cp_init(consumer_pool_t *pool, int count, work_queue_t *q){
             break;
         }
     }
+    if(pool->count == 0){
+        pthread_mutex_destroy(&pool->request_mutex);
+        free(pool->threads);
+        return -1;
+    }
 
     return 0; 
 }

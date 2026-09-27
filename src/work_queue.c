@@ -80,6 +80,7 @@ int wq_pop(work_queue_t *q, int *out_file_descriptor){
 
 void wq_close(work_queue_t *q){
     pthread_mutex_lock(&q->mutex);
+    q->closed = 1;
     pthread_cond_broadcast(&q->not_empty);  //wake up consumers 
     pthread_cond_broadcast(&q->not_full);  //wake up producer 
     pthread_mutex_unlock(&q->mutex);
