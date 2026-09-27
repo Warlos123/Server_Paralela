@@ -13,12 +13,17 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <time.h>
+
+
 
 typedef struct {
     struct sockaddr_in server;
     unsigned long requests;
     unsigned long completed;   /* written only by this thread */
 } worker_args_t;
+
+
 
 static int send_one_request(const struct sockaddr_in *server)
 {
@@ -60,6 +65,10 @@ static void *worker(void *arg)
 
 int main(int argc, char **argv)
 {
+
+    struct timespec start; 
+    struct timespec end;
+
     if (argc != 5) {
         fprintf(stderr,
                 "usage: %s <host> <port> <threads> <requests-per-thread>\n",
@@ -95,6 +104,7 @@ int main(int argc, char **argv)
     }
 
     long started = 0;
+    clock_gettime(CLOCK_MONOTONIC, &start);
     for (long i = 0; i < thread_count; ++i) {
         args[i].server = server;
         args[i].requests = (unsigned long)per_thread;
@@ -116,8 +126,16 @@ int main(int argc, char **argv)
         else
             total += args[i].completed;
     }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    double elapsed = end.tv_sec - start.tv_sec; 
+    double nanoSec = end.tv_nsec - start.tv_nsec; 
+    nanoSec = nanoSec / 1e9;
+    elapsed = elapsed + nanoSec; 
+    
 
     printf("requests completed: %lu\n", total);
+    printf("time elapsed: %.3f\n",  elapsed);
 
     free(tids);
     free(args);
