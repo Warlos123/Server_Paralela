@@ -41,7 +41,7 @@ static int install_signal_handlers(void)
     struct sigaction sa;
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = SIG_IGN;
+    sa.sa_handler = on_sigint;
 
     if (sigaction(SIGINT, &sa, NULL) < 0)
     {
@@ -50,7 +50,7 @@ static int install_signal_handlers(void)
     }
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = on_sigint;
+    sa.sa_handler = SIG_IGN;
 
     if (sigaction(SIGPIPE, &sa, NULL) < 0)
     {
