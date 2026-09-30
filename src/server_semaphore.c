@@ -117,6 +117,11 @@ int main(int argc, char **argv)
     {
         return EXIT_FAILURE;
     }
+
+    if(sem_init(&semaphore, 0,1) < 0){
+        perror("sem_init");
+        return EXIT_FAILURE;
+    }
     unsigned short port = parse_port(argc, argv);
 
     int listen_file_descriptor = nu_listen(port, LISTEN_BACKLOG);
