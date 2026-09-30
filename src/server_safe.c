@@ -53,7 +53,7 @@ static int install_signal_handlers(void)
     }
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = on_sigint;
+    sa.sa_handler = SIG_IGN;
 
     if (sigaction(SIGPIPE, &sa, NULL) < 0)
     {
@@ -68,8 +68,8 @@ static void *handle_connection(void *arg)
 {
     connection_t *conn = arg;
 
-    printf("[Handling connection %lu] accepted\n", conn->connection_id);
-    fflush(stdout);
+    // printf("[Handling connection %lu] accepted\n", conn->connection_id);
+    // fflush(stdout);
 
     if (nu_drain_request(conn->file_descriptor) > 0)
     {

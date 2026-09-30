@@ -1,8 +1,3 @@
-//
-// Created by Sleyter Angulo on 9/17/26.
-//
-
-
 #define _POSIX_C_SOURCE 200809L
 #include "../includes/net_util.h"
 #include <errno.h>
@@ -54,7 +49,7 @@ static int install_signal_handlers(void)
     }
 
     memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = on_sigint;
+    sa.sa_handler = SIG_IGN;
 
     if (sigaction(SIGPIPE, &sa, NULL) < 0)
     {
@@ -69,15 +64,18 @@ static void *handle_connection(void *arg)
 {
     connection_t *conn = arg;
 
-    printf("[Handling connection %lu] accepted\n", conn->connection_id);
-    fflush(stdout);
+    // printf("[Handling connection %lu] accepted\n", conn->connection_id);
+    // fflush(stdout);
 
     if (nu_drain_request(conn->file_descriptor) > 0)
     {
         (void)nu_send_response(conn->file_descriptor, conn->connection_id);
     }
 
-    sem_wait(&semaphore);
+    while (sem_wait(&semaphore)< 0 && errno == EINTR){
+        continue;
+    }
+    
     unsigned long current = g_requests_served;
     sched_yield();
     g_requests_served = current + 1;
@@ -129,6 +127,7 @@ int main(int argc, char **argv)
 
     if (listen_file_descriptor < 0)
     {
+        sem_destroy(&semaphore);
         return EXIT_FAILURE;
     }
 
